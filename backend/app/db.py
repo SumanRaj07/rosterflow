@@ -8,10 +8,16 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 load_dotenv()  # a backend/.env file works too, not just real environment vars
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./rosterflow.db")
-# Render (and some other hosts) provide postgres:// URLs; SQLAlchemy wants
-# postgresql://, so normalize the scheme.
+# Always use the psycopg2 driver (the one in requirements.txt). Render
+# provides postgres:// URLs; Supabase provides postgresql:// URLs. A bare
+# postgresql:// makes SQLAlchemy 2.0 default to the psycopg (v3) driver,
+# which is NOT installed -- that crashed the backend on Vercel+Supabase
+# with "No module named 'psycopg'". So pin the driver explicitly, unless
+# the URL already names one (postgresql+...://).
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = "postgresql+psycopg2://" + DATABASE_URL[len("postgres://"):]
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = "postgresql+psycopg2://" + DATABASE_URL[len("postgresql://"):]
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, connect_args=connect_args, future=True,
