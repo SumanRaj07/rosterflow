@@ -1,7 +1,11 @@
 import axios from "axios";
 import type { AxiosResponse } from "axios";
 
-const api = axios.create({ baseURL: "http://127.0.0.1:8000" });
+// Deployment: set VITE_API_URL in the hosting dashboard (e.g. Vercel) to the
+// deployed backend URL. Local dev falls back to the local backend.
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000",
+});
 
 api.interceptors.request.use((cfg) => {
   const token = localStorage.getItem("rosterflow_token");

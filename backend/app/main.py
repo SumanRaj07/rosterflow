@@ -22,9 +22,17 @@ from .models import (
 )
 
 app = FastAPI(title="RosterFlow API", version="1.0.0")
+# Deployment: set CORS_ORIGINS (comma-separated) in the hosting dashboard to
+# the deployed frontend origin, e.g. https://rosterflow.vercel.app. Local
+# development defaults to the Vite dev server origins.
+import os as _os
+
+_cors_env = _os.environ.get("CORS_ORIGINS", "")
+_cors_origins = ([o.strip() for o in _cors_env.split(",") if o.strip()]
+                 if _cors_env else ["http://localhost:5173", "http://127.0.0.1:5173"])
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=_cors_origins,
     allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
 
