@@ -12,7 +12,7 @@ from . import schemas as S
 from . import services as svc
 from .auth import (create_token, get_current_user, require_roles,
                    verify_password, visible_pod_ids)
-from .db import get_db, init_db
+from .db import ensure_initialized, get_db
 from .models import (
     Assignment, Availability, Brand, CompOffRecord, Conflict, Employee,
     EmployeePreference, EmployeeQualification, Holiday, LeaveRequest,
@@ -36,6 +36,39 @@ app.add_middleware(
     allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
 
+
+class _EnsureApiPrefixMiddleware:
+    """Accept backend requests with or without the /api prefix.
+
+    All routes live under /api. Vercel serves this app mounted at /api and
+    may or may not strip that prefix before the request reaches us; other
+    hosts serve it directly. So: paths already under /api pass through,
+    docs routes pass through, everything else gets /api prepended. This
+    keeps local dev, Render/Railway, and Vercel all working unchanged.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            path = scope.get("path", "")
+            if path in ("/api/docs", "/api/openapi.json", "/api/redoc"):
+                path = path[4:]
+            elif path.startswith("/api/") or path == "/api":
+                pass
+            elif path in ("/", "/docs", "/openapi.json", "/redoc",
+                          "/favicon.ico"):
+                pass
+            else:
+                path = "/api" + path
+            scope["path"] = path
+            scope["raw_path"] = path.encode("utf-8")
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(_EnsureApiPrefixMiddleware)
+
 ADMIN = require_roles("admin")
 MANAGER = require_roles("admin", "manager")
 STAFF = require_roles("admin", "manager", "pod_lead")
@@ -56,7 +89,9 @@ def _emp_out(e: Employee):
 
 @app.on_event("startup")
 def _startup():
-    init_db()
+    # Also enforced lazily by get_db() for serverless hosts that skip
+    # lifespan events; see db.ensure_initialized.
+    ensure_initialized()
 
 
 @app.get("/api/health")

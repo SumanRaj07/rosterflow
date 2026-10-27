@@ -22,7 +22,31 @@ cd backend
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m app.seed      # creates rosterflow.db with demo data
 .venv/bin/uvicorn app.main:app --port 8000
+
+Note: on first startup with an empty database, the backend seeds the demo data
+automatically (and loads a `backend/.env` file if present), so the seed step is
+optional on fresh deployments.
 ```
+
+## Deploy on Vercel (frontend + backend, one domain)
+
+`vercel.json` declares two services: `frontend` (Vite, served on `/`) and
+`backend` (FastAPI, served on `/api`). The backend accepts requests with or
+without the `/api` prefix, so the same code also works on Render/Railway/
+PythonAnywhere. Vercel functions are stateless, so the backend needs a real
+Postgres database — SQLite will not persist. Steps:
+
+1. Create a free project on Supabase (no card) and copy its **Session pooler**
+   connection string.
+2. Import this repo on Vercel and choose **Import multi-service project**.
+3. Set environment variables: `DATABASE_URL` = the Supabase pooler URL,
+   `VITE_API_URL` = `/` (same-origin API calls, so no CORS setup is needed).
+4. Deploy. The first API request creates the tables and seeds the demo data
+   automatically — log in with `admin@rosterflow.local` / `Admin@123`.
+
+Notes: Supabase free projects pause after 7 days of inactivity (resume them
+from the Supabase dashboard); Vercel functions cold-start, so the first
+request after idle takes a few seconds.
 
 API docs: http://127.0.0.1:8000/docs
 
